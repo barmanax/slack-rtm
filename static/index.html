@@ -6,7 +6,14 @@
 <body>
     <h1>Mini Slack Chat</h1>
 
-    <p id="status">Connecting...</p>
+    <label for="roomInput">Room:</label>
+    <input id="roomInput" type="text" value="general" />
+
+    <button onclick="connectToRoom()">Join Room</button>
+
+    <p id="status">Not connected</p>
+
+    <hr />
 
     <input id="messageInput" type="text" placeholder="type a message..." />
     <button onclick="sendMessage()">Send</button>
@@ -15,27 +22,52 @@
 
     <script>
         const status = document.getElementById("status");
+        const roomInput = document.getElementById("roomInput");
         const input = document.getElementById("messageInput");
         const messages = document.getElementById("messages");
 
-        const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+        let socket = null;
+        let currentRoom = null;
 
-        socket.onopen = function() {
-            status.textContent = "Connected";
-        };
+        function connectToRoom() {
+            const room = roomInput.value.trim();
 
-        socket.onmessage = function(event) {
-            const li = document.createElement("li");
-            li.textContent = event.data;
-            messages.appendChild(li);
-        };
+            if (room === "") {
+                return;
+            }
 
-        socket.onclose = function() {
-            status.textContent = "Disconnected";
-        };
+            if (socket !== null) {
+                socket.close();
+            }
+
+            messages.innerHTML = "";
+            currentRoom = room;
+
+            socket = new WebSocket(`ws://127.0.0.1:8000/ws/${room}`);
+
+            socket.onopen = function() {
+                status.textContent = `Connected to room: ${room}`;
+            };
+
+            socket.onmessage = function(event) {
+                const li = document.createElement("li");
+                li.textContent = event.data;
+                messages.appendChild(li);
+            };
+
+            socket.onclose = function() {
+                status.textContent = "Disconnected";
+            };
+        }
 
         function sendMessage() {
+            if (socket === null || socket.readyState !== WebSocket.OPEN) {
+                alert("Join a room first.");
+                return;
+            }
+
             const text = input.value;
+
             if (text.trim() === "") {
                 return;
             }
